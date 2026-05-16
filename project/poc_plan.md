@@ -68,25 +68,28 @@ If CUDA is not available, stop and resolve before proceeding (WSL2 plus CUDA can
 
 ---
 
-## 5. Get the data (10 minutes)
+## 5. Get the data (5 minutes)
 
-Download the NeRF-Synthetic dataset (used by Mildenhall et al. in the original paper). It contains photos of objects rendered from known camera positions, with train/val/test splits and camera-pose JSON files. The "lego" subfolder is what we need.
+We will use the **Tiny NeRF preprocessed dataset** (`tiny_nerf_data.npz`), published by Mildenhall alongside the Tiny NeRF tutorial. It contains 106 images of the Lego scene at 100x100 resolution, the corresponding camera-to-world matrices, and the focal length, all packaged into a single ~10 MB numpy file.
 
-The dataset is hosted by the NeRF authors on Google Drive. From the project folder:
+The file is hosted by the NeRF authors at UC San Diego (this is the URL used by the official Tiny NeRF notebook in the `bmild/nerf` repository):
 
 ```bash
 mkdir -p data
-# Manual download: visit the link from the official NeRF repo
-# https://github.com/bmild/nerf and follow their data download instructions.
-# Place the extracted nerf_synthetic/lego folder in data/.
+cd data
+wget http://cseweb.ucsd.edu/~viscomp/projects/LF/papers/ECCV20/nerf/tiny_nerf_data.npz
+cd ..
 ```
 
-Verify after extraction:
+Verify:
 
 ```bash
-ls data/nerf_synthetic/lego
-# Should show: train/  val/  test/  transforms_train.json  transforms_val.json  transforms_test.json
+python -c "import numpy as np; d = np.load('data/tiny_nerf_data.npz'); print({k: d[k].shape for k in d.files})"
+# Expected output (something like):
+# {'images': (106, 100, 100, 3), 'poses': (106, 4, 4), 'focal': ()}
 ```
+
+If the shapes match (around 100 images, 100x100x3, plus a 4x4 pose per image and a scalar focal length), you're set.
 
 ---
 
