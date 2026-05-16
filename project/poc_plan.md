@@ -100,17 +100,16 @@ Create `poc/poc_nerf.ipynb`. The notebook is organised into the cells below.
 ### Cell 1: Imports and configuration
 
 ```python
-import json, os, math
+import math
 import torch
 import torch.nn as nn
 import numpy as np
-import imageio.v3 as iio
 import matplotlib.pyplot as plt
 from tqdm.notebook import tqdm
 
 device = "cuda"
-DATA_DIR = "data/nerf_synthetic/lego"
-RES = 200             # downsampled resolution
+DATA_PATH = "data/tiny_nerf_data.npz"
+RES = 100             # native resolution of tiny_nerf_data
 N_SAMPLES = 64        # samples per ray
 BATCH_RAYS = 1024
 N_ITERATIONS = 5000
@@ -119,7 +118,19 @@ LR = 5e-4
 
 ### Cell 2: Data loading
 
-A function that reads `transforms_train.json`, loads each image, downsamples to `RES`, and returns `(images, poses, focal_length)`. This is dataset-specific boilerplate, roughly 30 lines.
+```python
+data = np.load(DATA_PATH)
+images = torch.tensor(data["images"], dtype=torch.float32, device=device)   # [N, 100, 100, 3]
+poses  = torch.tensor(data["poses"],  dtype=torch.float32, device=device)   # [N, 4, 4]
+focal  = float(data["focal"])
+
+# Hold out the last image as a test view; train on the rest.
+train_images, train_poses = images[:-1], poses[:-1]
+test_image,   test_pose   = images[-1],  poses[-1]
+
+H, W = train_images.shape[1], train_images.shape[2]
+print(f"Loaded {len(train_images)} training images at {H}x{W}, focal={focal:.2f}")
+```
 
 ### Cell 3: Ray generation
 
@@ -238,21 +249,20 @@ class MyAdam:
 ```python
 encoding = PositionalEncoding(num_freqs=10).to(device)
 model = TinyNeRF(enc_dim=encoding.out_dim).to(device)
-opt = MyAdam(list(model.parameters()) + list(encoding.parameters()), lr=LR)
-
-images, poses, focal = load_lego_train(DATA_DIR, RES)  # from Cell 2
+opt = MyAdam(list(model.parameters()), lr=LR)
 
 losses = []
 for it in tqdm(range(N_ITERATIONS)):
-    img_idx = np.random.randint(len(images))
-    target = images[img_idx]
-    pose = poses[img_idx]
-    rays_o, rays_d = get_rays(RES, RES, focal, pose)
+    img_idx = np.random.randint(len(train_images))
+    target = train_images[img_idx]
+    pose   = train_poses[img_idx]
+
+    rays_o, rays_d = get_rays(H, W, focal, pose)
     rays_o = rays_o.reshape(-1, 3)
     rays_d = rays_d.reshape(-1, 3)
     target_flat = target.reshape(-1, 3)
 
-    pix = torch.randint(0, RES * RES, (BATCH_RAYS,), device=device)
+    pix  = torch.randint(0, H * W, (BATCH_RAYS,), device=device)
     pred = render_rays(rays_o[pix], rays_d[pix], model, encoding)
     loss = ((pred - target_flat[pix]) ** 2).mean()
 
@@ -277,15 +287,19 @@ Expected: the curve drops by roughly two orders of magnitude.
 ### Cell 10: Render a novel view
 
 ```python
-# Load a held-out test pose
-test_poses = load_test_poses(DATA_DIR)
-pose = test_poses[0]
-rays_o, rays_d = get_rays(RES, RES, focal, pose)
+# Use the held-out test pose loaded in Cell 2
+rays_o, rays_d = get_rays(H, W, focal, test_pose)
+rays_o = rays_o.reshape(-1, 3)
+rays_d = rays_d.reshape(-1, 3)
 
-# Render in batches to avoid OOM
+# Render in batches to avoid GPU OOM at full image resolution
 with torch.no_grad():
-    pred = render_in_batches(rays_o.reshape(-1, 3), rays_d.reshape(-1, 3), model, encoding, batch_size=4096)
-img = pred.reshape(RES, RES, 3).cpu().numpy()
+    chunks = []
+    for i in range(0, rays_o.shape[0], 4096):
+        chunks.append(render_rays(rays_o[i:i+4096], rays_d[i:i+4096], model, encoding))
+    pred = torch.cat(chunks, dim=0)
+
+img = pred.reshape(H, W, 3).cpu().numpy()
 
 plt.figure(figsize=(6, 6))
 plt.imshow(np.clip(img, 0, 1))
@@ -299,9 +313,11 @@ Expected: a recognisable Lego bulldozer from a viewpoint not in the training set
 ### Cell 11: Side-by-side check
 
 ```python
+gt = test_image.cpu().numpy()
+
 fig, axes = plt.subplots(1, 2, figsize=(12, 6))
-axes[0].imshow(load_test_image(DATA_DIR, 0)); axes[0].set_title("Ground truth")
-axes[1].imshow(np.clip(img, 0, 1));            axes[1].set_title("Rendered")
+axes[0].imshow(gt);                  axes[0].set_title("Ground truth (held-out view)")
+axes[1].imshow(np.clip(img, 0, 1));  axes[1].set_title("Rendered by Tiny NeRF")
 for a in axes: a.axis("off")
 plt.show()
 ```
