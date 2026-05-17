@@ -27,19 +27,9 @@ The choice of optimizer is therefore not cosmetic. Methods that converge cleanly
 
 ---
 
-## 1.1 Project Contributions: What This Project Will Deliver, Mapped to the Project Objectives
+## 1.1 Mapping to Project Objectives
 
-The project will be assessed against the five objectives stated in the project brief: formulate an optimization problem; select and implement optimization methods; analyse convergence, stability, and performance; compare approaches and justify methodological choices; propose duly substantiated improvements. The remainder of this document elaborates each commitment in detail. For ease of reading, what we propose to deliver against each objective is summarised here.
-
-- **Objective 1 (Formulate an optimization problem in the AI context).** Delivered in Section 2: a self-contained mathematical formulation of the non-convex, high-dimensional, stochastic problem of 3D scene reconstruction. This includes the exact optimization variables, the per-pixel loss, the rendering operator with the discretised volume-rendering equation, the regularisation term, the formulation choices to be defended (loss function, encoding frequency, sampling strategy, parameterisation), and the analysis of why first-order stochastic methods are the appropriate solver family for this problem.
-
-- **Objective 2 (Select and implement optimization methods).** Delivered in Section 3: from-scratch implementations on top of PyTorch's automatic differentiation of five gradient-based optimizers (SGD, classical momentum, Nesterov accelerated gradient, Adam, AdamW) and a learning-rate schedule. Also delivered: a compact NeRF model and the differentiable volume-rendering integral, written from scratch so that every optimization choice remains under our control. The 3D Gaussian Splatting baseline is included via a published reference implementation as a contemporary point of comparison; the optimization-side study lives in the NeRF implementation.
-
-- **Objective 3 (Analyse convergence, stability, and performance).** Delivered in Section 4: for every configuration we will report training-loss curves and held-out PSNR/SSIM curves over iterations (with log-axis convergence plots), wall-clock time and time-to-target-quality, multi-seed variance with mean and standard deviation, sensitivity to the learning rate over orders of magnitude, and qualitative renders of novel views. The analysis is empirical, as is appropriate for a stochastic non-convex problem at this scale, but it is rigorous in the sense of using identical conditions across compared methods and reporting variability.
-
-- **Objective 4 (Compare different approaches and justify methodological choices).** Delivered across Sections 3 and 4 along three explicit comparison axes: five optimizers against each other on the same NeRF problem under identical conditions; four loss formulations (L1, L2, SSIM, L1+SSIM) against each other with the best optimizer; and the NeRF custom implementation against 3D Gaussian Splatting on the same scenes. For each axis we will report rankings by convergence speed, by final quality, by stability across seeds, and by efficiency, and we will defend the methodological choices we make on the basis of these results.
-
-- **Objective 5 (Propose duly substantiated improvements based on results).** Delivered in Section 5: four targeted improvements (adaptive view sampling, multi-scale training, learning-rate restarts, perceptual loss), each motivated by a specific property of the optimization problem and each evaluated as an isolated ablation against the best-performing baseline. The improvements are not chosen arbitrarily; each addresses a characteristic of the problem we will have identified in the preceding analysis (ill-conditioning in pixel space, non-convexity of the landscape, sharp local minima, the gap between pixel-wise and perceptual quality).
+The five project objectives (formulate; implement; analyse; compare; propose improvements) are addressed by Sections 2, 3, 4, 4, and 5 respectively. The remainder of this document develops each in detail.
 
 ---
 
@@ -175,9 +165,9 @@ $$
 
 Schedules of this form have become standard in deep learning because they explore the loss surface aggressively early in training (large `η`) and refine near a minimum late in training (small `η`). Their effect on this non-convex stochastic problem is one of the things the comparison will quantify.
 
-**Why implement from scratch.** Each of the five optimizers above is roughly 20 to 50 lines of clear Python on top of PyTorch's autograd. Implementing them ourselves ensures the project is a genuine study of computational optimization rather than a benchmarking exercise of PyTorch library internals. It also forces us to confront the practical details that the textbook update rules abstract away: numerical stability of the bias-correction terms, handling of `None` gradients, in-place vs out-of-place updates, and the cost of maintaining auxiliary state (momentum buffers, second-moment buffers). These are part of what a serious comparison must report on.
+**Why implement from scratch.** Implementing the optimizers ourselves is what makes this a study of computational optimization rather than a benchmark of pre-existing library code. Every gradient step, momentum buffer update, and bias-correction term is code we wrote, can inspect, can modify, and can defend in the analysis. It is also what makes the comparison fair: identical numerical conventions, identical edge-case handling, and identical state initialisation across all five methods, none of which can be guaranteed when comparing different library implementations against each other.
 
-**What the comparison will produce.** A side-by-side study of the five optimizers on the same NeRF reconstruction problem, under the same iteration and time budgets, with identical data sampling and identical initialisation. The expected outcomes are: a ranking of methods by convergence speed (iterations to reach a target PSNR), a ranking by final quality at a fixed budget, a characterisation of stability (variance across seeds), and a sensitivity analysis (final quality as a function of learning rate, per method). These quantities together form the basis of the methodological justification required by the project objectives.
+**What the comparison will produce.** Under identical iteration budgets, data sampling, and initialisation, the comparison produces per-method rankings by convergence speed, final quality at a fixed budget, stability across seeds, and learning-rate sensitivity. These quantities are the basis of the methodological justification required by the project objectives.
 
 ### 3.3 Loss Formulations
 
@@ -256,26 +246,12 @@ Each improvement will be evaluated against the best-performing baseline configur
 
 ## 6. Dataset, Compute, and Software
 
-**Datasets.** We will capture our own dataset of one or two real-world scenes using a smartphone (approximately 30 to 60 images per scene), processed through COLMAP for Structure-from-Motion pose estimation. We will additionally evaluate on at least one standard scene from the NeRF synthetic dataset, to allow comparison with published numbers.
-
-**Compute.** All training and evaluation will run on a local NVIDIA RTX 4090 (24 GB VRAM). A compact NeRF trains in tens of minutes to a few hours per scene on this hardware; Gaussian Splatting trains in a few minutes. The full sweep of optimizer and loss combinations is comfortably achievable within the project timeline.
-
-**Software.** Python with PyTorch as the primary framework. Custom optimizer code and volume-rendering code will be written from scratch for NeRF. An open-source reference implementation will be used for Gaussian Splatting. COLMAP will be used for camera calibration.
+We will use one or two self-captured real-world scenes (smartphone, around 30 to 60 images each, processed via COLMAP for Structure-from-Motion) plus at least one standard NeRF-synthetic scene for comparison with published numbers. The stack is Python and PyTorch, with custom optimizer and volume-rendering code for NeRF, an open-source reference implementation for Gaussian Splatting, and COLMAP for camera calibration.
 
 ---
 
-## 7. Work Distribution
+## 7. Work Distribution and Deliverable
 
-The project is developed by two students, as required by the course brief, with active participation from both in all phases. The intended approach is to split the workload equally across the project's several areas: the custom optimizer implementations, the loss-formulation comparisons, the NeRF model and differentiable rendering pipeline, the Gaussian Splatting baseline runs, the evaluation infrastructure, the analysis writeup, and the selected improvement experiment from Section 5. Specific task allocation between the two students will be agreed jointly as work progresses and rebalanced where useful. Both students will participate in code reviews, in all course tutorials, and in weekly synchronisation meetings, so that neither student is unfamiliar with any part of the codebase or the analysis by the time of the defence.
-
-## 8. Deliverable Format
-
-We will submit the project in two complementary forms, derived from a single source:
-
-1. **Jupyter Notebook** combining the mathematical formulation, the Python implementation, the training and evaluation loops, the convergence plots, the qualitative image comparisons, and the discussion. The notebook is organised to allow reproducible re-running of all reported experiments and is the primary artifact for code review.
-
-2. **Written report** built from the notebook, structured around the project objectives and suitable for linear reading without executing code. The report shares the figures and discussion of the notebook but presents them in a continuous narrative form.
-
-This dual delivery exceeds the minimum required by the course brief (which specifies either Option A *or* Option B). The intent is to give the grading panel the format that is most convenient for evaluation: the interactive notebook for code review and re-execution, and the written report for narrative review of the methodology and the results.
+The workload is split equally across the project's several areas, with joint participation in code review, tutorials, and synchronisation meetings. The final deliverable is a Jupyter Notebook accompanied by a written report derived from it.
 
 ---
