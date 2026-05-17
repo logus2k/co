@@ -69,21 +69,7 @@ $$
 
 where `δ_k = t_{k+1} − t_k` is the distance between consecutive samples and `T_k` is the accumulated transmittance up to sample `k`. The operator is differentiable with respect to every `σ_k` and `c_k`, and through the representation also with respect to `θ`. The full objective is therefore amenable to gradient-based optimization via reverse-mode automatic differentiation (PyTorch autograd composes the gradient through the loss, the renderer, the encoding, and the MLP in one backward pass).
 
-### 2.2 Why first-order stochastic methods
-
-Given the properties of the problem (non-convex, high-dimensional, stochastic, ill-conditioned), first-order stochastic methods are the appropriate family of solvers and the focus of the implementation work.
-
-Second-order methods (Newton, BFGS, Gauss-Newton) are infeasible at this scale because the Hessian `∇²_θ L` cannot be stored explicitly: for `|θ| = 10^5`, a dense Hessian already occupies tens of gigabytes. Quasi-Newton methods such as L-BFGS are sometimes feasible but their assumption of relatively smooth, deterministic objectives is violated by the high gradient noise of mini-batch sampling. First-order methods, by contrast, store only first-moment state (SGD, momentum) or both first- and second-moment state (Adam, AdamW), scale linearly in `|θ|`, and tolerate stochasticity through momentum smoothing or per-parameter adaptation.
-
-### 2.3 The role of positional encoding
-
-A naively parameterised MLP that takes a raw 3D point as input cannot fit high-frequency scene detail: the implicit bias of small fully-connected networks is toward low-frequency functions of their inputs. To address this, we wrap the input coordinate in a fixed (non-learned) positional encoding `γ(x)`:
-
-$$
-\gamma(x) = \big[\, x,\ \sin(2^0 \pi x),\ \cos(2^0 \pi x),\ \ldots,\ \sin(2^{L-1} \pi x),\ \cos(2^{L-1} \pi x) \,\big]
-$$
-
-with `L` between 8 and 14 frequency bands. The encoding adds no parameters to be optimised; it changes the input to the MLP so that high-frequency variations in the scene become easier for the optimizer to discover. The choice of `L` materially affects both reconstruction quality and the conditioning of the optimization problem: too few bands and the model cannot represent fine detail; too many and the model overfits noise and training becomes unstable. This is one of the formulation choices we will study empirically.
+First-order stochastic methods (SGD, momentum, Adam, AdamW) are the appropriate solver family: second-order methods do not fit in memory at this parameter count, and quasi-Newton variants do not tolerate the gradient noise of mini-batch sampling. We also wrap the MLP input in a fixed positional encoding so the small network can fit fine scene detail; the number of encoding bands is one of the formulation choices we will study.
 
 ---
 
