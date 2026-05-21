@@ -1,0 +1,36 @@
+# Computational Optimization project - Python dependencies
+# Validated with Python 3.12 on Linux (RTX 4090, CUDA 13.0).
+
+# --- PyTorch (install separately, platform-specific) ---
+# Install the build matching your OS and CUDA version from:
+#   https://pytorch.org/get-started/locally/
+# A plain `pip install torch` may give a CPU-only build. The validated Linux
+# environment uses torch 2.12.0 with CUDA 13.0. On Windows without Triton, the
+# notebooks' torch.compile step auto-falls back to the uncompiled model.
+torch>=2.4
+
+# --- Numerical and data ---
+numpy==2.4.5
+pandas>=2.2
+
+# --- Imaging and visualization ---
+matplotlib==3.10.9
+Pillow==12.2.0
+scikit-image==0.26.0
+imageio==2.37.3
+imageio-ffmpeg==0.6.0
+
+# --- Evaluation metric (used from Phase 2 onward) ---
+lpips>=0.1.4
+
+# --- Utilities ---
+tqdm==4.67.3
+
+# --- Notebook environment ---
+jupyter
+ipykernel==7.2.0
+
+# --- Optional: Windows torch.compile support ---
+# On Windows, torch.compile needs Triton, which is not bundled with PyTorch.
+# For the compile speedup (not required; the notebooks work without it), also:
+#   pip install triton-windows
