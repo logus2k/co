@@ -14,20 +14,23 @@ The committed scope is fixed by the submitted proposal (`computational_optimizat
 
 **Done:**
 - Stage 0 scoping benchmark: configuration locked (resolution 200x200, small MLP 128x4, 40,000-iteration budget). See Section 6.1.
-- `src/nerf_tutorial2.ipynb` restructured into the 12-section target layout below (52 cells).
+- `src/nerf_tutorial2_v2_AC.ipynb` (the live notebook; previous versions are frozen) restructured into the 12-section target layout below (57 cells after the §7.1 inserts).
 - All five optimizers implemented from scratch and split into Sections 4.1-4.6, plus the cosine-warmup LR schedule (Stage 2).
 - L1 and L2 loss functions and the `make_loss` registry (Section 5).
-- Stage 1 experiment harness: `nerf_synthetic` loader, train/val/test split, `RunConfig`/`RunResult`, the parameterized `run_experiment`, on-disk JSON logging, and the LPIPS metric. Validated end to end on CPU.
+- Stage 1 experiment harness: `nerf_synthetic` loader, train/val/test split, `RunConfig`/`RunResult`, the parameterized `run_experiment`, on-disk JSON logging, and the LPIPS metric. Validated end to end on CPU and confirmed on GPU via the §6.4 smoke test.
+- §7.1 Learning-Rate Sweep on Lego (40 runs, 10,000-iter budget, 2026-05-27): Adam/AdamW peak at lr=1e-3 (~23 dB); momentum/Nesterov peak at lr=3e-1 (~21-22 dB); plain SGD peaks at lr=3e-1 (~19.5 dB) and is still climbing at the grid edge, so an upward extension for the SGD family at lr ∈ {1.0, 3.0} is pending.
+
+**In flight:**
+- §7.2 multi-seed optimizer comparison RUNNING as of 2026-05-27 (30 runs: 5 optimizers × {Lego, Drums} × 3 seeds × 40,000 iters; ~3 hours on a clean GPU; resumable via the per-run config-hash cache under `outputs/runs/`).
 
 **Not done (remaining Phase 2):**
-- GPU smoke test of the harness (cell 6.4) and the Stage 4 experiments.
 - SSIM and L1+SSIM losses and the patch-based ray sampling they need (Stage 3, surfaced in Section 8).
-- The three comparison experiments (optimizers, losses, NeRF vs Gaussian Splatting) and their analysis.
-- Gaussian Splatting baseline.
-- The improvements (at least one as a full ablation).
-- The written analysis prose for Sections 7-12.
+- Loss comparison (Section 8) and NeRF vs Gaussian Splatting comparison (Section 11).
+- Gaussian Splatting baseline (Section 10).
+- The improvements (at least one as a full ablation, Section 9).
+- The written analysis prose: the §7.1 and §7.2 Interpretation cells, plus all of Sections 8-12.
 
-Sections 7-12 of the notebook exist as titled placeholders describing what each will contain.
+§7 is fully fleshed out (intro, §7.1 LR sweep, §7.2 multi-seed comparison cells in place); Sections 8-12 still exist as titled placeholders.
 
 ---
 
@@ -83,7 +86,7 @@ The resolution, MLP, and iteration budget were decided from measurement, not gue
 
 **Carry-forward for Phase 2:** the separability check ran SGD and Adam at the same learning rate (a clean control); the real Phase 2 comparison must give each optimizer its own learning rate via LR sweeps, or SGD will look broken rather than slow.
 
-The Stage 0 writeup is in `src/nerf_tutorial2.ipynb` (Experimental Setup section).
+The Stage 0 writeup is in `src/nerf_tutorial2_v2_AC.ipynb` (Section 6.1).
 
 ### Stage 1: Experiment harness — COMPLETE (2026-05-21)
 
@@ -93,7 +96,7 @@ The Stage 0 writeup is in `src/nerf_tutorial2.ipynb` (Experimental Setup section
 - [x] Add a per-run config object and on-disk logging of loss history, PSNR/SSIM history, and timings, so runs are not lost. (`RunConfig` / `RunResult`, JSON files under `outputs/runs/`)
 - [x] Add LPIPS as an evaluation metric alongside PSNR and SSIM. (`get_lpips` + `evaluate`, Section 6.2)
 
-The harness was validated end to end on CPU: a tiny five-optimizer run through `run_experiment` confirmed data loading, the parameterized loop, every optimizer, PSNR/SSIM/LPIPS evaluation, and JSON logging work together. The GPU smoke test is cell `## 6.4 Harness Smoke Test`, ready to run once a GPU is free; it is the first thing to execute when GPU work resumes.
+The harness was validated end to end on CPU and then confirmed on GPU via the §6.4 smoke test (2026-05-27): a 300-iter Adam run reached val PSNR 14.00 dB (rising), 48.7 iter/s, LPIPS computed, JSON logging confirmed.
 
 ### Stage 2: Optimizers — COMPLETE (2026-05-21)
 
@@ -109,18 +112,18 @@ All five optimizers share the `zero_grad()` / `step()` interface and are selecte
 
 ### Stage 3: Loss functions
 
-- [ ] L2 (already done); refactor to the shared loss interface.
-- [ ] Implement L1.
-- [ ] Implement SSIM loss.
-- [ ] Implement the weighted L1 + SSIM combination.
+- [x] L2 (already done); refactor to the shared loss interface. (Section 5, `loss_l2`)
+- [x] Implement L1. (Section 5, `loss_l1`)
+- [ ] Implement SSIM loss. (Section 8 — needs patch-based ray sampling, since SSIM is a spatial measure that cannot be computed from scattered pixels)
+- [ ] Implement the weighted L1 + SSIM combination. (Section 8, follows SSIM)
 
 ### Stage 4: Core experiments
 
-- [ ] Optimizer comparison: 5 optimizers, >= 3 seeds, fixed loss, on the chosen scenes.
-- [ ] Learning-rate sensitivity sweep per optimizer.
-- [ ] Loss comparison: 4 losses, >= 3 seeds, with the best optimizer from the previous step.
-- [ ] Produce comparison tables as `pandas` DataFrames (code-cell output).
-- [ ] Produce convergence plots overlaying methods (loss-vs-iteration and quality-vs-iteration, log axes, labelled).
+- [x] **Learning-rate sensitivity sweep per optimizer.** (Section 7.1; 40 runs at 10k iters on Lego, 2026-05-27. `sweep_learning_rates` + `select_best_lr`. SGD-family upward extension at lr ∈ {1.0, 3.0} pending — their curves are still climbing at the 3e-1 grid edge.)
+- [ ] **Optimizer comparison:** 5 optimizers, >= 3 seeds, fixed loss, on the chosen scenes. (Section 7.2 — RUNNING as of 2026-05-27: 30 runs across {Lego, Drums} × {seed 0, 1, 2} at 40k iters with LPIPS.)
+- [ ] Loss comparison: 4 losses, >= 3 seeds, with the best optimizer from the previous step. (Section 8; depends on Stage 3 SSIM/L1+SSIM.)
+- [ ] Produce comparison tables as `pandas` DataFrames (code-cell output). (§7.2 cell 55 produces the optimizer-comparison tables once the run completes.)
+- [ ] Produce convergence plots overlaying methods (loss-vs-iteration and quality-vs-iteration, log axes, labelled). (§7.2 cell 56 produces the validation-PSNR overlay with seed-std bands.)
 
 ### Stage 5: Gaussian Splatting baseline
 
