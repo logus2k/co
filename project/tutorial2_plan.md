@@ -14,23 +14,25 @@ The committed scope is fixed by the submitted proposal (`computational_optimizat
 
 **Done:**
 - Stage 0 scoping benchmark: configuration locked (resolution 200x200, small MLP 128x4, 40,000-iteration budget). See Section 6.1.
-- `src/nerf_tutorial2_v2_AC.ipynb` (the live notebook; previous versions are frozen) restructured into the 12-section target layout below (57 cells after the §7.1 inserts).
+- `src/nerf_tutorial2_v3_AC.ipynb` (the live notebook as of 2026-05-30; V2 archived with the §7.1+§7.2 outputs baked in, previous versions frozen) restructured into the 12-section target layout below (69 cells).
 - All five optimizers implemented from scratch and split into Sections 4.1-4.6, plus the cosine-warmup LR schedule (Stage 2).
 - L1 and L2 loss functions and the `make_loss` registry (Section 5).
 - Stage 1 experiment harness: `nerf_synthetic` loader, train/val/test split, `RunConfig`/`RunResult`, the parameterized `run_experiment`, on-disk JSON logging, and the LPIPS metric. Validated end to end on CPU and confirmed on GPU via the §6.4 smoke test.
 - §7.1 Learning-Rate Sweep on Lego (40 runs, 10,000-iter budget, 2026-05-27): Adam/AdamW peak at lr=1e-3 (~23 dB); momentum/Nesterov peak at lr=3e-1 (~21-22 dB); plain SGD peaks at lr=3e-1 (~19.5 dB) and is still climbing at the grid edge, so an upward extension for the SGD family at lr ∈ {1.0, 3.0} is pending.
-
-**In flight:**
-- §7.2 multi-seed optimizer comparison RUNNING as of 2026-05-27 (30 runs: 5 optimizers × {Lego, Drums} × 3 seeds × 40,000 iters; ~3 hours on a clean GPU; resumable via the per-run config-hash cache under `outputs/runs/`).
+- §7.2 Multi-Seed Optimizer Comparison COMPLETE (2026-05-28; 30 runs across 5 optimizers × {Lego, Drums} × 3 seeds × 40,000 iters with LPIPS): Adam wins (test PSNR 22.01 ± 0.34 dB pooled), AdamW essentially tied, Nesterov and momentum within 0.3 dB, plain SGD at 20.19. Headline methodological finding: the Adam-vs-SGD gap collapses from 12.77 dB (shared LR, Stage 0) to 1.82 dB (each at its own §7.1 LR), so most of the apparent advantage was learning-rate mismatch, not the optimizer itself.
+- §7.1 and §7.2 Interpretation cells written with the actual results; §2 / §4 / §6.2 / §12 received theoretical-grounding additions tying the project to Module 1 (first-order optimality, why Hessian-based classification is infeasible at scale, metrics as empirical analogue of analytical classification); §12 has partial conclusions covering Stage 4's optimizer findings.
+- §6.5 Inspecting and Rendering Trained Models added (`run_experiment` now writes `.pt` weights per run; `load_run`, `ensure_model`, `show_test_view`, `make_orbit` utilities); enables the qualitative visual results (rendered novel views, orbit MP4) referenced by Section 7.3 of the plan.
 
 **Not done (remaining Phase 2):**
 - SSIM and L1+SSIM losses and the patch-based ray sampling they need (Stage 3, surfaced in Section 8).
 - Loss comparison (Section 8) and NeRF vs Gaussian Splatting comparison (Section 11).
 - Gaussian Splatting baseline (Section 10).
 - The improvements (at least one as a full ablation, Section 9).
-- The written analysis prose: the §7.1 and §7.2 Interpretation cells, plus all of Sections 8-12.
+- §7.3 Qualitative Results (rendered views per optimizer + orbit animation) — code building blocks in §6.5 ready; needs ~40 min GPU to retrain 5 configs and produce the side-by-side grid.
+- §7.1 LR-grid upward extension for SGD family (lr ∈ {1.0, 3.0}) — ~12 min GPU.
+- Written analysis prose for Sections 8-11 (skeletons + post-experiment interpretations).
 
-§7 is fully fleshed out (intro, §7.1 LR sweep, §7.2 multi-seed comparison cells in place); Sections 8-12 still exist as titled placeholders.
+§7 is fleshed out through §7.2 with interpretation; Sections 8-12 still exist as titled placeholders, except §12 which has partial conclusions.
 
 ---
 
@@ -86,7 +88,7 @@ The resolution, MLP, and iteration budget were decided from measurement, not gue
 
 **Carry-forward for Phase 2:** the separability check ran SGD and Adam at the same learning rate (a clean control); the real Phase 2 comparison must give each optimizer its own learning rate via LR sweeps, or SGD will look broken rather than slow.
 
-The Stage 0 writeup is in `src/nerf_tutorial2_v2_AC.ipynb` (Section 6.1).
+The Stage 0 writeup is in `src/nerf_tutorial2_v3_AC.ipynb` (Section 6.1).
 
 ### Stage 1: Experiment harness — COMPLETE (2026-05-21)
 
@@ -114,37 +116,51 @@ All five optimizers share the `zero_grad()` / `step()` interface and are selecte
 
 - [x] L2 (already done); refactor to the shared loss interface. (Section 5, `loss_l2`)
 - [x] Implement L1. (Section 5, `loss_l1`)
-- [ ] Implement SSIM loss. (Section 8 — needs patch-based ray sampling, since SSIM is a spatial measure that cannot be computed from scattered pixels)
-- [ ] Implement the weighted L1 + SSIM combination. (Section 8, follows SSIM)
+- [ ] Implement SSIM loss from scratch (11x11 Gaussian-windowed). (Section 5; routed via `make_loss("ssim")`. Requires `RunConfig.patch_size > 0` since SSIM cannot be computed from scattered pixels.)
+- [ ] Implement the weighted L1 + SSIM combination. (Section 5; routed via `make_loss("l1_ssim")` with `alpha` from `RunConfig`.)
+- [ ] Add patch-based ray sampler and branch in `run_experiment` on `cfg.patch_size`. (Section 6.3)
 
 ### Stage 4: Core experiments
 
 - [x] **Learning-rate sensitivity sweep per optimizer.** (Section 7.1; 40 runs at 10k iters on Lego, 2026-05-27. `sweep_learning_rates` + `select_best_lr`. SGD-family upward extension at lr ∈ {1.0, 3.0} pending — their curves are still climbing at the 3e-1 grid edge.)
-- [ ] **Optimizer comparison:** 5 optimizers, >= 3 seeds, fixed loss, on the chosen scenes. (Section 7.2 — RUNNING as of 2026-05-27: 30 runs across {Lego, Drums} × {seed 0, 1, 2} at 40k iters with LPIPS.)
+- [x] **Optimizer comparison:** 5 optimizers, >= 3 seeds, fixed loss, on the chosen scenes. (Section 7.2 COMPLETE 2026-05-28: 30 runs across {Lego, Drums} × {seed 0, 1, 2} at 40k iters with LPIPS. Adam 22.01 ± 0.34 dB pooled wins; the Adam-vs-SGD gap collapses from 12.77 dB shared-LR to 1.82 dB per-method-LR.)
 - [ ] Loss comparison: 4 losses, >= 3 seeds, with the best optimizer from the previous step. (Section 8; depends on Stage 3 SSIM/L1+SSIM.)
-- [ ] Produce comparison tables as `pandas` DataFrames (code-cell output). (§7.2 cell 55 produces the optimizer-comparison tables once the run completes.)
-- [ ] Produce convergence plots overlaying methods (loss-vs-iteration and quality-vs-iteration, log axes, labelled). (§7.2 cell 56 produces the validation-PSNR overlay with seed-std bands.)
+- [x] Produce comparison tables as `pandas` DataFrames (code-cell output). (§7.2 cell 61 produces the per-optimizer and per-(optimizer, scene) tables; pending for §8 loss comparison.)
+- [x] Produce convergence plots overlaying methods (loss-vs-iteration and quality-vs-iteration, log axes, labelled). (§7.2 cell 62 produces the validation-PSNR overlay with seed-std bands per scene; pending for §8.)
 
 ### Stage 5: Gaussian Splatting baseline
 
-- [ ] Select and set up an open-source 3D Gaussian Splatting reference implementation.
-- [ ] Train it on the same scenes as NeRF.
+- [ ] Select and set up an open-source 3D Gaussian Splatting reference implementation. (Plan: `gsplat` by Nerfstudio, pip-installable, PyTorch wrapping with prebuilt CUDA wheels.)
+- [ ] Write a thin training wrapper matching our `RunConfig` interface (`run_gs_experiment(cfg) -> RunResult`).
+- [ ] Train it on the same scenes as NeRF (Lego, Drums).
 - [ ] Evaluate with the same metrics (PSNR, SSIM, LPIPS) on the same held-out views.
-- [ ] Record training time and parameter count for the efficiency discussion.
+- [ ] Record training time and parameter count (number of Gaussians × per-Gaussian fields) for the efficiency discussion.
+
+### Stage 5b: Self-captured scene (Tutorial #1 §6 commitment)
+
+- [ ] Capture 30-60 smartphone photos of one real scene.
+- [ ] Run COLMAP Structure-from-Motion to recover camera intrinsics and poses.
+- [ ] Implement a COLMAP loader that converts `cameras.txt` / `images.txt` to our train/val/test tensor format.
+- [ ] Train at least the best optimizer (Adam from §7.2) on the self-captured scene and report a result row alongside the synthetic-scene table.
 
 ### Stage 6: Improvements
 
-- [ ] Choose which improvement(s) to implement, guided by the bottleneck observed in Stage 4 (the proposal commits to attempting all four; at minimum one must be a full ablation).
-- [ ] Implement and run the chosen improvement(s): adaptive view sampling, multi-scale training, learning-rate restarts (SGDR), perceptual loss.
-- [ ] Evaluate each as an isolated ablation against the best baseline configuration.
+The user aims for 100% delivery, so all four proposal-listed improvements get implemented; at minimum one must be a full ablation (Tutorial #1 §5).
+
+- [ ] **Improvement A — Learning-rate restarts (SGDR).** Cyclic cosine schedule with optional cycle doubling. Cheap (~10 lines on top of `cosine_warmup_lr`). RunConfig: `use_sgdr`, `t0`, `t_mult`.
+- [ ] **Improvement B — Perceptual loss.** Augment pixel loss with deep-feature L2 distance using the cached LPIPS AlexNet backbone. RunConfig: loss `"l2_perc"` with `perc_weight`.
+- [ ] **Improvement C — Multi-scale (coarse-to-fine) training.** Train at reduced resolution and double at fixed milestones. RunConfig: `resolution_schedule = [(0, 64), (10000, 100), (20000, 200)]`.
+- [ ] **Improvement D — Adaptive view sampling.** Importance-sample views by per-image running MSE: $p_i \propto (e_i + \varepsilon)^{\alpha}$. RunConfig: `adaptive_sampling`, `adaptive_alpha`.
+- [ ] Evaluate each as an isolated ablation against the §7.2 best-baseline (Adam + L2 + uniform sampling at the §7.1 LR).
 
 ### Stage 7: Analysis and report writing
 
-- [ ] Write the Introduction and Problem Formulation sections (can be adapted from the proposal).
-- [ ] Write a Markdown intro before every code section and a Markdown interpretation after every experiment.
+- [x] Write the Introduction and Problem Formulation sections (can be adapted from the proposal). (§1 written; §2 written with the Module-1-first-order-condition addition that motivates the iterative methods.)
+- [ ] Write a Markdown intro before every code section and a Markdown interpretation after every experiment. (Code-section intros in place throughout §3-§6; experiment interpretations done for §7.1 and §7.2; pending for §8-§11 once those experiments land.)
 - [ ] Write the NeRF vs Gaussian Splatting comparison section (Section 11).
-- [ ] Write Conclusions and Future Work (Section 12), tying findings back to the formulation.
-- [ ] Verify all plots have titles, axis labels, and legends; all tables are DataFrame output.
+- [ ] Write Conclusions and Future Work (Section 12), tying findings back to the formulation. (Partial: §12 has the Stage-4 optimizer findings and the methodological framing tying back to Module 1; the §8 / §9 / §10-§11 findings still need to be folded in.)
+- [ ] Verify all plots have titles, axis labels, and legends; all tables are DataFrame output. (§7.1 sweep and §7.2 convergence overlay verified; §8/§11 plots pending.)
+- [x] §7.3 Qualitative Results — infrastructure in place via §6.5 (`load_run`, `ensure_model`, `show_test_view`, `make_orbit`). The §7.3 section itself, with rendered novel views per optimizer plus an orbit MP4, is pending the ~40 min GPU window to populate `.pt` weights.
 
 ### Stage 8: Deliverables and defence
 
@@ -182,6 +198,14 @@ All five optimizers share the `zero_grad()` / `step()` interface and are selecte
 - **Windows teammate.** One machine has an RTX 3050 on Windows without Triton; `torch.compile` is disabled there via the existing fallback. Heavy experiment runs should target the 4090.
 
 ---
+
+## Priority Tiers for 100% Delivery
+
+**Tier 1 — must ship, drive the rubric:** Stages 3, 4 (loss comparison), 5 (GS), 5b (self-captured), 6 (improvements ≥ 1 ablation, ideally all four), §7.3 qualitative renders, §8 / §9 / §10 / §11 / §12 written analysis.
+
+**Tier 2 — completeness items called out in Tutorial #1 §4:** training-loss-vs-iter curves, time-to-fixed-target-quality metric, plot/table polish (titles, axes, legends, DataFrame outputs).
+
+**Tier 3 — least priority, no rubric damage if descoped:** §7.1 LR-grid upward extension for the SGD family (the qualitative ranking is robust either way; would shift SGD by ~0.5-1 dB without changing the winner); regularisation Ω(θ) parameter sweep (proposal framed it as "formulation choice we will study", AdamW already provides weight decay — discussable as future work in §12); additional contrasting synthetic scene beyond Lego + Drums (Drums-vs-Lego is already a difficulty gradient).
 
 ## Critical Path
 
