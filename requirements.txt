@@ -23,6 +23,20 @@ imageio-ffmpeg==0.6.0
 # --- Evaluation metric (used from Phase 2 onward) ---
 lpips>=0.1.4
 
+# --- Gaussian Splatting reference implementation (Section 10) ---
+# Provides the differentiable rasteriser used by run_gs_experiment. Ships
+# prebuilt CUDA wheels for common torch/CUDA combinations; the kernels JIT-
+# compile on first import (one-time ~90 s on the validated machine).
+gsplat==1.5.3
+
+# --- Hyperparameter optimisation (Section 8.3) ---
+# TPE sampler + MedianPruner are used to refine the L1 learning rate; this
+# addresses the requirements list's "Hyperparameter optimisation" and
+# "Bayesian optimisation" application areas. Optuna is the applied tool here;
+# the project's "from scratch" commitment is scoped to the five gradient
+# optimizers of Section 4.
+optuna==4.9.0
+
 # --- Utilities ---
 tqdm==4.67.3
 
