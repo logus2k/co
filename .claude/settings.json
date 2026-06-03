@@ -1,5 +1,11 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 /tmp/diag_grad.py)",
+      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 -c ' *)",
+      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3)",
+      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 /tmp/insert_viz_cells.py)"
+    ],
     "additionalDirectories": [
       "/tmp"
     ]
