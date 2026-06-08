@@ -1,0 +1,15 @@
+:6601 {
+	root * /srv
+	file_server
+	try_files {path} /index.html
+	encode gzip
+
+	# Default cache headers
+	header {
+		Cache-Control "public, max-age=3600"
+	}
+
+	# Make sure the splat PLY downloads as binary (some clients sniff it as text)
+	@ply path *.ply
+	header @ply Content-Type "application/octet-stream"
+}

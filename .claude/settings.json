@@ -5,7 +5,9 @@
       "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 -c ' *)",
       "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3)",
       "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 /tmp/insert_viz_cells.py)",
-      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 /tmp/patch_v5_viz.py)"
+      "Bash(/home/logus/env/iscte/co/.venv_co/bin/python3 /tmp/patch_v5_viz.py)",
+      "Bash(.venv_co/bin/python -c ' *)",
+      "Bash(.venv_co/bin/python)"
     ],
     "additionalDirectories": [
       "/tmp"

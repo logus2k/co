@@ -1,0 +1,18 @@
+services:
+  freddie:
+    build:
+      # Build context is the parent dir so the Dockerfile can COPY the
+      # index.html, splats PLY, and the two node_modules subtrees from
+      # their live locations without duplicating them into this folder.
+      context: ..
+      dockerfile: freddie_viewer/Dockerfile
+    container_name: freddie-viewer
+    ports:
+      - "6601:6601"
+    restart: unless-stopped
+    networks:
+      - logus2k_network
+
+networks:
+  logus2k_network:
+    external: true

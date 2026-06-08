@@ -1,0 +1,35 @@
+# .dockerignore lives at the build-context root (~/env/iscte/co/) and keeps
+# the freddie_viewer image small by excluding the Python venv, COLMAP data,
+# notebook checkpoints, and the bulk of node_modules.
+#
+# What the Dockerfile still picks up explicitly:
+#   index.html, concert_stage.png, src/splats/freddie_gs.ply,
+#   node_modules/three/build/, node_modules/@mkkellogg/gaussian-splats-3d/build/
+
+# Local-state directories
+.git/
+.claude/
+.vscode/
+.venv_co/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+*.pyo
+
+# Heavy content directories (none served by the viewer)
+data/
+outputs/
+freddie/
+freddie_masked/
+freddie_masked_rembg/
+
+# src/ — only src/splats/ is served
+src/*.py
+src/*.ipynb
+src/orbit_videos/
+
+# node_modules — keep only the two packages the viewer's import map references
+node_modules/*
+!node_modules/three
+!node_modules/@mkkellogg

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freddie 3D Gaussian Splats</title>
+    <style>
+        :root {
+            --bg: #181818;
+            --panel-bg: rgba(20, 20, 22, 0.75);
+            --text: #e8e8e8;
+            --accent: #ffcc33;
+            --muted: #aaa;
+        }
+        * { box-sizing: border-box; }
+        html { background: var(--bg); }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            /* Default: plain dark background. The toggle below adds .with-bg
+               which switches in the concert-stage image. The splat canvas
+               stays transparent either way (alpha=true + clearColor alpha=0). */
+            background: var(--bg);
+        }
+        body.with-bg {
+            background: url('./concert_stage.png') center / cover no-repeat fixed,
+                        var(--bg);
+        }
+        canvas {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--muted);
+            pointer-events: auto;
+            user-select: none;
+            cursor: pointer;
+        }
+        .toggle input {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 30px;
+            height: 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+        .toggle input::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 12px;
+            height: 12px;
+            background: #ddd;
+            border-radius: 50%;
+            transition: transform 0.15s, background 0.15s;
+        }
+        .toggle input:checked {
+            background: var(--accent);
+        }
+        .toggle input:checked::after {
+            transform: translateX(14px);
+            background: #fff;
+        }
+        #info {
+            position: fixed;
+            top: 16px;
+            left: 16px;
+            padding: 12px 16px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(6px);
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            max-width: 400px;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        #info .title {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        #info .controls {
+            color: var(--muted);
+            margin-top: 6px;
+            font-size: 12px;
+        }
+        #info kbd {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            padding: 1px 5px;
+            font-family: monospace;
+            font-size: 11px;
+        }
+        #error {
+            color: #ff6b6b;
+            margin-top: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "./node_modules/three/build/three.module.js",
+            "three/addons/": "./node_modules/three/examples/jsm/",
+            "@mkkellogg/gaussian-splats-3d": "./node_modules/@mkkellogg/gaussian-splats-3d/build/gaussian-splats-3d.module.js"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div id="info">
+        <div class="title">Freddie Mercury - 3D Gaussian Splats</div>
+        <div id="status">Loading <code>src/splats/freddie_gs.ply</code> …</div>
+        <div class="controls">
+            <strong>Drag</strong> to orbit ·
+            <strong>Scroll</strong> to zoom ·
+            <strong>Right-drag</strong> to pan
+        </div>
+        <label class="toggle">
+            <input id="bg-toggle" type="checkbox" checked>
+            <span>Concert stage background</span>
+        </label>
+        <div id="error"></div>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+
+        const statusEl = document.getElementById('status');
+        const errorEl  = document.getElementById('error');
+
+        // Background image toggle. Default on (concert stage shown). Sync the
+        // body class with the checkbox state at startup so the initial paint
+        // matches whatever `checked` attribute we set in the HTML.
+        const bgToggle = document.getElementById('bg-toggle');
+        document.body.classList.toggle('with-bg', bgToggle.checked);
+        bgToggle.addEventListener('change', () => {
+            document.body.classList.toggle('with-bg', bgToggle.checked);
+        });
+
+        // Bring our own renderer so the canvas is transparent and the
+        // concert_stage.png body background shows through behind Freddie.
+        // premultipliedAlpha=false avoids the dark fringing that the default
+        // premultiplied mode would put on the splat alpha edges.
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            premultipliedAlpha: false,
+        });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x000000, 0);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.domElement.style.background = 'transparent';
+        document.body.appendChild(renderer.domElement);
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Camera + up params derived from the current COLMAP point cloud at
+        // data/colmap/freddie_masked/sparse/0/points3D.txt. In the present
+        // COLMAP frame Freddie's body axis runs predominantly along +X (the
+        // SfM solver's choice of world basis), so cameraUp = world-Y would
+        // load him lying down. The numbers below match the §12.7 orbit-cell
+        // PCA estimator output:
+        //   centre = (+1.7288, +0.9582, +1.3887)   (point-cloud bbox midpoint)
+        //   up     = (+0.9692, +0.0831, +0.2320)   (PCA largest singular)
+        //   extent = 4.107, radius = 1.5 * extent ≈ 6.16
+        // initialCameraPosition is placed in the plane perpendicular to up,
+        // one radius away from centre, so Freddie fills a comfortable
+        // portion of the frame on first paint.
+        const viewer = new GaussianSplats3D.Viewer({
+            'renderer'             : renderer,
+            'cameraUp'             : [-0.9692, -0.0831, -0.2320],
+            'initialCameraPosition': [+0.3047, +0.8361, +7.3805],
+            'initialCameraLookAt'  : [+1.7288, +0.9582, +1.3887],
+            'sphericalHarmonicsDegree': 0,
+            'sharedMemoryForWorkers' : false,
+            'gpuAcceleratedSort'     : false,
+        });
+
+        viewer
+            .addSplatScene('./src/splats/freddie_gs.ply', {
+                'showLoadingUI'             : true,
+                'splatAlphaRemovalThreshold': 5,
+                // Rotate Freddie −110° around his body axis, shift him ~1.2
+                // world units downward along +up_pca, then ~1.0 world units
+                // along the camera's right axis (≈ +200 px in viewer space).
+                //   axis = (+0.9692, +0.0831, +0.2320)  PCA up
+                //   cam_right (world) = (−0.0854, +0.9963, −0.0000)
+                //   pos = (centre − rotated_centre) + 1.2 * axis + 1.0 * cam_right
+                'position': [+0.5955, +1.2625, +2.2330],
+                'rotation': [-0.7939, -0.0681, -0.1900, +0.5736],
+            })
+            .then(() => {
+                viewer.start();
+                statusEl.innerHTML = '<code>src/splats/freddie_gs.ply</code> · 200 000 splats · 29.15 dB';
+            })
+            .catch((err) => {
+                console.error(err);
+                statusEl.textContent = 'Failed to load splats.';
+                errorEl.textContent  = err?.message || String(err);
+            });
+    </script>
+</body>
+</html>
