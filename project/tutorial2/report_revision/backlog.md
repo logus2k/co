@@ -27,6 +27,27 @@ The first bullet of §12.3 carries leftover text from the previous wording, prod
 - **Current:** `A Bayesian's sweep over the learning rate, a cosine schedule, and gradient clipping at norm 1.0 all fail`
 - **Replace with:** `A Bayesian sweep over the learning rate, a cosine schedule, and gradient clipping at norm 1.0 all fail`
 
+### [ ] A4. Drop unverifiable 12.77 / 12.00 dB "separability check" claim across three sites
+
+The 12.77 dB at 200 × 200 and 12.00 dB at 400 × 400 measurements are stated in the report as if they came from a "dedicated SGD-vs-Adam separability check", but the code that produced them is not in the released notebook (or in any other notebook in the repo). The numbers were carried forward as prose from earlier versions; the actual measurement cells were removed during cleanup. This refactor drops the unrecoverable specifics and re-anchors the surviving narrative to the Section 7.1 learning-rate sweep, which *is* in the notebook (Figure 1). Notebook side is already corrected by the user; the three Word sites below remain.
+
+**A4.1 — §6.1 Selected configuration (page 8).**
+
+- **Current:** `A dedicated SGD-vs-Adam separability check confirmed that 200 × 200 distinguishes optimizers fully: the Adam − SGD best-PSNR gap was 12.77 dB at 200 × 200, marginally larger than the 12.00 dB measured at 400 × 400. Rendering resolution is selected as 200 × 200.`
+- **Replace with:** `200 × 200 gives the best quality-per-compute among the tested resolutions and avoids the under-coverage penalty that lowers PSNR at higher resolutions under a fixed ray budget. The concern that the lower resolution might collapse the differences between optimizers (an "uninformative regime") is refuted by the Section 7.1 learning-rate sweep, which at 200 × 200 produces a clean two-family pattern with Adam and the SGD family separated by more than 12 dB at the shared 5 × 10⁻⁴ rate. Rendering resolution is selected as 200 × 200.`
+
+**A4.2 — §7.2 multi-seed Interpretation (page 11), headline-finding paragraph.**
+
+- **Current:** `The headline methodological finding follows from comparing this multi-seed result to the scoping-study separability check. That earlier check ran Adam and SGD at a shared learning rate of 5 × 10⁻⁴ and measured a 12.77 dB gap in Adam's favor. Once each method is given its own learning-rate-sweep-selected rate, the gap collapses to 1.82 dB. Almost eleven dB of the apparent Adam advantage is a learning-rate-mismatch artefact rather than a property of the optimizer.`
+- **Replace with:** `The headline methodological finding follows from comparing this multi-seed result to the Section 7.1 learning-rate sweep. At a shared learning rate of 5 × 10⁻⁴ Adam sits near its peak at about 22 dB while SGD is still in its under-trained regime at about 9 dB, so a shared-rate comparison measures an apparent Adam advantage of more than 12 dB. Once each method is given its own learning-rate-sweep-selected rate, the gap collapses to 1.82 dB. Most of the apparent Adam advantage is a learning-rate-mismatch artefact rather than a property of the optimizer.`
+
+**A4.3 — §13 Conclusions (page 23), first finding paragraph.**
+
+- **Current:** `At a shared rate of 5 × 10⁻⁴, Adam appears to beat SGD by 12.77 dB; at each method's own learning-rate-sweep-selected rate, Adam at η = 10⁻³ and SGD at η = 3 × 10⁻¹, the gap collapses to 1.82 dB. Almost eleven dB of the apparent Adam advantage is a learning-rate-mismatch artefact rather than a property of the optimizer.`
+- **Replace with:** `At a shared rate of 5 × 10⁻⁴, Adam appears to beat SGD by more than 12 dB, because at that rate Adam is near its peak while SGD is in its under-trained regime. At each method's own learning-rate-sweep-selected rate, Adam at η = 10⁻³ and SGD at η = 3 × 10⁻¹, the gap collapses to 1.82 dB. Most of the apparent Adam advantage is a learning-rate-mismatch artefact rather than a property of the optimizer.`
+
+**Notebook side:** already corrected by the user. No further notebook action required for A4.
+
 ## Tier B — Polish (style and exposition; should fix)
 
 ### [ ] B1. §11.3 / Figure 6 page 19: orphan qualitative-grid figure
