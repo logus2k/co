@@ -13,7 +13,7 @@
             --muted: #aaa;
         }
         * { box-sizing: border-box; }
-        html { background: var(--bg); }
+        html { background: #ffffff; }
         body {
             margin: 0;
             padding: 0;
@@ -21,10 +21,11 @@
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             -webkit-font-smoothing: antialiased;
-            /* Default: plain dark background. The toggle below adds .with-bg
-               which switches in the concert-stage image. The splat canvas
-               stays transparent either way (alpha=true + clearColor alpha=0). */
-            background: var(--bg);
+            /* Default (concert toggle off): plain white background. The toggle
+               below adds .with-bg which switches in the concert-stage image.
+               The splat canvas stays transparent either way (alpha=true +
+               clearColor alpha=0). */
+            background: #ffffff;
         }
         body.with-bg {
             background: url('./concert_stage.png') center / cover no-repeat fixed,
