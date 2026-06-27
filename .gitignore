@@ -1,9 +1,9 @@
 .venv_co
 data/
 outputs
-module?/videos
 node_modules/
 freddie/
 
 project/tutorial2/delivery/
 
+**/*.mp4
